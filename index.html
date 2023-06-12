@@ -1,0 +1,607 @@
+<!doctype html>
+<html>
+<head>
+    <title>WebGL Demo</title>
+</head>
+
+<body>
+    <!-- CANVAS -->
+    <button id="vbutton"> Vertical Rotation</button>
+    <div style="margin:0 auto;text-align:center">
+      <div style="margin-left:auto;margin-right:auto;text-align:center">
+            <canvas id="output" width="1000" height="1000"></canvas>
+      </div>
+    </div>
+    <br>
+
+    <img id="cubeImage" src="atlas.png" width="0" height="0"></img>
+    
+    <!-- VERTEX SHADER -->
+    <script id="vertex-shader" type="notjs">#version 300 es
+        in vec4 a_position;
+        in float a_point_size;
+
+        in vec2 a_texture_coord;
+        out vec2 v_texture_coord;
+        
+        // in vec3 a_color;
+        // out vec3 vColor;
+
+        uniform mat4 u_transformation_matrix;
+        uniform mat4 u_model_matrix;
+        uniform mat4 u_view_matrix;
+        uniform mat4 u_projection_matrix;
+
+        void main() {
+            v_texture_coord = a_texture_coord;
+            // Input point passes through the transformation matrix
+            gl_Position = u_projection_matrix * u_view_matrix * u_model_matrix * u_transformation_matrix * a_position; // backwards yung mult
+            // vColor = a_color;
+        } 
+    </script>
+
+    <!-- FRAGMENT SHADER -->
+    <script id="fragment-shader" type="notjs">#version 300 es
+        precision mediump float;
+
+        // in vec3 vColor;
+        // out vec4 outColor;
+
+        in vec2 v_texture_coord;
+        uniform sampler2D sampler;
+        out vec4 fragColor;
+
+        void main(void) {
+            // outColor = vec4(vColor,0.8);
+            fragColor = texture(sampler, v_texture_coord);
+        }    
+    </script>
+
+    <!-- IMPORTED LIBRARY -->
+    <script src="gl-matrix.js"></script>
+    <script src="cube.js"></script>
+
+
+    <!-- Function for creating and compiling shader programs -->
+    <script>
+        function createShader (gl, type, sourceCode) {
+            // Compiles either a shader of type gl.VERTEX_SHADER or gl.FRAGMENT_SHADER
+            var shader = gl.createShader( type );
+            gl.shaderSource( shader, sourceCode );
+            gl.compileShader( shader );
+
+            if ( !gl.getShaderParameter(shader, gl.COMPILE_STATUS) ) {
+                var info = gl.getShaderInfoLog( shader );
+                throw 'Could not compile WebGL program. \n\n' + info;
+            }
+            return shader;
+        }
+    </script>
+
+    <!-- Renderer Class -->
+    <script>
+        class Renderer{
+            constructor(canvas){
+                this.gl = canvas.getContext('webgl2');
+                this.initializeRenderer();
+                this.setData(); 
+            }
+
+            // helper functions
+            resetGL(){
+                this.gl.clearColor(1.0, 1.0, 1.0, 1.0);
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+                this.gl.enable(this.gl.DEPTH_TEST);
+            }
+
+            handleShaders(){
+                // load shaders from this html
+                const vertexShaderSource = document.querySelector('#vertex-shader').text;
+                const fragmentShaderSource = document.querySelector('#fragment-shader').text;
+
+                // create the shaders
+                this.vertexShader = createShader(this.gl, this.gl.VERTEX_SHADER, vertexShaderSource);
+                this.fragmentShader = createShader(this.gl, this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                // attach shaders to the program
+                this.gl.attachShader(this.program, this.vertexShader);
+                this.gl.attachShader(this.program, this.fragmentShader);
+            }
+
+            loadProgram(){
+                this.gl.linkProgram(this.program);
+
+                if ( !this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS) ) {
+                    var info = this.gl.getProgramInfoLog(this.program);
+                    throw 'Could not compile WebGL program. \n\n' + info;
+                }
+            }
+
+            createPointers(){
+                this.pointers = {
+                    attribs:{
+                        aPositionPointer             : this.gl.getAttribLocation(this.program, 'a_position'),
+                        aTexCoordPointer             : this.gl.getAttribLocation(this.program, 'a_texture_coord'),
+                        aColorPointer                : this.gl.getAttribLocation(this.program, 'a_color'),
+                    },
+                    uniforms:{
+                        uModelMatrixPointer          : this.gl.getUniformLocation(this.program, 'u_model_matrix'),
+                        uViewMatrixPointer           : this.gl.getUniformLocation(this.program, 'u_view_matrix'),
+                        uProjectionMatrixPointer     : this.gl.getUniformLocation(this.program, 'u_projection_matrix'),
+                        uTransformationMatrixPointer : this.gl.getUniformLocation(this.program, 'u_transformation_matrix')
+                    }
+                }
+            }
+
+            createBuffers(){
+                this.vertexBuffer = this.gl.createBuffer();
+                this.colorBuffer = this.gl.createBuffer();
+                this.textureBuffer = this.gl.createBuffer();
+            }
+
+            initializeRenderer(){
+                this.program = this.gl.createProgram();
+                this.resetGL();
+                this.handleShaders();
+                this.loadProgram();
+                this.gl.useProgram(this.program);
+                this.createPointers();
+                this.createBuffers();
+            }
+
+            setData(){
+                this.gl.vertexAttribPointer(this.pointers.attribs.aPositionPointer, 3, this.gl.FLOAT, false, 0, 0);
+                // this.gl.vertexAttribPointer(this.pointers.attribs.aColorPointer, 3, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.enableVertexAttribArray(this.pointers.attribs.aPositionPointer);
+                // this.gl.enableVertexAttribArray(this.pointers.attribs.aColorPointer);
+            }
+
+            loadPointers(object){
+                this.gl.uniformMatrix4fv(this.pointers.uniforms.uModelMatrixPointer, false, new Float32Array(object.matrices.modelMatrix));
+                this.gl.uniformMatrix4fv(this.pointers.uniforms.uViewMatrixPointer, false, new Float32Array(object.matrices.viewMatrix));
+                this.gl.uniformMatrix4fv(this.pointers.uniforms.uProjectionMatrixPointer, false, new Float32Array(object.matrices.projectionMatrix));
+                this.gl.uniformMatrix4fv(this.pointers.uniforms.uTransformationMatrixPointer, false, new Float32Array(object.matrices.transformationMatrix));
+            }
+
+            setBuffers(object){
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(object.data), this.gl.STATIC_DRAW);
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+
+                // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
+                // this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(object.colors), this.gl.STATIC_DRAW);
+                // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+            }
+
+            setTextures(object){
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.textureBuffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(object.texture), this.gl.STATIC_DRAW);
+                this.gl.enableVertexAttribArray(this.pointers.attribs.aTexCoordPointer);
+                this.gl.vertexAttribPointer(this.pointers.attribs.aTexCoordPointer, 2, this.gl.FLOAT, false, 0, 0);
+            
+                var texture = this.gl.createTexture();
+                this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+                this.gl.texImage2D(
+                    this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE,
+                    document.getElementById('cubeImage')
+                );
+                this.gl.texParameteri( this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT );
+                this.gl.texParameteri( this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT );
+                this.gl.texParameteri( this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR );
+            }
+
+            draw(object){
+                this.loadPointers(object);
+                this.setBuffers(object);
+                this.setTextures(object);
+
+                // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
+                // this.gl.vertexAttribPointer(this.pointers.attribs.aColorPointer, 3, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+                this.gl.vertexAttribPointer(this.pointers.attribs.aPositionPointer, 3, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+                this.gl.vertexAttribPointer(this.pointers.attribs.aPositionPointer, 3, this.gl.FLOAT, false, 0, 0);
+                
+                this.gl.drawArrays(this.gl.TRIANGLES, 0, object.data.length / 3);
+            }
+        }
+    </script>
+
+    <!-- Object Class -->
+    <script>
+        class Object{
+            constructor(){
+                this.data = [...data];
+                this.colors = normalizedColors;
+                this.rotateAngle = [0,0,0];
+                this.texture = texture;
+
+                this.createMatrices();
+            }
+
+            translate(x, y, z){
+                this.coordinate = [x,y,z];
+
+                for(var i=0; i<this.data.length; i=i+3){
+                    this.data[i]    += x;
+                    this.data[i+1]  += y;
+                    this.data[i+2]  += z;
+                }
+            }
+
+            createMatrices(){
+                this.matrices = {
+                    modelMatrix          : glMatrix.mat4.create(),
+                    viewMatrix           : glMatrix.mat4.create(),
+                    projectionMatrix     : glMatrix.mat4.create(),
+                    transformationMatrix : glMatrix.mat4.create(),
+                    identityMatrix       : glMatrix.mat4.create()
+                }
+
+                glMatrix.mat4.translate(this.matrices.modelMatrix, this.matrices.modelMatrix, [0,0,0,0]);
+                glMatrix.mat4.lookAt(this.matrices.viewMatrix, [1, -1, 1], [0,0,-1],[0,1,0]);
+                glMatrix.mat4.ortho(this.matrices.projectionMatrix, -5, 5, -5, 5, 5,-5);
+                glMatrix.mat4.identity(this.matrices.transformationMatrix);
+                glMatrix.mat4.identity(this.matrices.identityMatrix);
+            }
+
+            updateAngle(axis, angle){
+                if(axis == "X"){
+                    this.rotateAngle[0] = angle;
+                }
+                if(axis == "Y"){
+                    this.rotateAngle[1] = angle;
+                }
+                if(axis == "Z"){
+                    this.rotateAngle[2] = angle;
+                }
+            }
+
+
+            updateCoordinate(key, direction, cubePositions){
+                let currentPos = 0;
+                let newPos = 0;
+
+                /*
+                if(key == "D"){
+                    if(this.coordinate[0] == 1){
+                        currentPos = cubePositions.revGet(this.coordinate);
+
+                        if(direction == 1){
+                            newPos = rightRotateMap.get(currentPos);
+                        }else{
+                            newPos = rightRevRotateMap.get(currentPos);
+                        }
+
+
+                        console.log("CURRENT POSITION", currentPos);
+                        console.log("NEW POSITION", newPos);
+                        this.coordinate = cubePositions.get(newPos);
+                    }
+                }
+
+                if(key == "Q"){
+                    if(this.coordinate[1] == -1){
+                        currentPos = cubePositions.revGet(this.coordinate);
+
+                        if(direction == 1){
+                            newPos = upRotateMap.get(currentPos);
+                        }else{
+                            newPos = upRevRotateMap.get(currentPos);
+                        }
+
+                        console.log("CURRENT POSITION", currentPos);
+                        console.log("NEW POSITION", newPos);
+                        this.coordinate = cubePositions.get(newPos);
+                    }                    
+                }
+                */
+
+                let prevX = this.coordinate[0];
+                let prevY = this.coordinate[1];
+                let prevZ = this.coordinate[2];
+
+                let newCoordinate = 1;
+                if (direction < 0) newCoordinate = -1;
+
+                if((key == "A" && prevX == -1) || (key == "S" && prevX == 0) || (key == "D" && prevX == 1)){
+                        console.log("Previous: ", this.coordinate);
+                        if(prevY > 0) this.coordinate[2] = newCoordinate;
+                        else if(prevY < 0) this.coordinate[2] = newCoordinate * (-1);
+                        else if(prevY == 0) this.coordinate[2] = 0;
+                        if(prevZ > 0) this.coordinate[1] = newCoordinate * (-1);
+                        else if(prevZ < 0) this.coordinate[1] = newCoordinate;
+                        else if(prevZ == 0) this.coordinate[1] = 0;
+                        console.log("New: ", this.coordinate);
+                }else if((key == "Q" && prevY == 1) || (key == "W" && prevY == 0) || (key == "E" && prevY == -1)){
+                        console.log("Previous: ", this.coordinate);
+                        if(prevX < 0) this.coordinate[2] = newCoordinate;
+                        else if(prevX > 0) this.coordinate[2] = newCoordinate * (-1);
+                        else if(prevX == 0) this.coordinate[2] = 0;
+                        if(prevZ < 0) this.coordinate[0] = newCoordinate * (-1);
+                        else if(prevZ > 0) this.coordinate[0] = newCoordinate;
+                        else if(prevZ == 0) this.coordinate[0] = 0;
+                        console.log("New: ", this.coordinate);
+                }
+            }
+        }
+    </script>
+
+    <script>
+        class twoWayMap{
+            constructor(){
+                this.map = cubeMap;
+                this.revMap = new Map();
+
+                cubeMap.forEach((value, key, map) => {
+                    this.revMap.set(value, key);
+                });
+
+            }
+
+            get(key){
+                return cubeMap.get(key).split(",");
+            }
+
+            revGet(key){
+                return this.revMap.get(key.toString());
+            }
+        }
+
+    </script>
+
+    <script> 
+        const canvas = document.querySelector('#output');
+        if(!canvas){ 
+            console.log("Canvas element with specified ID ('output') cannot be found."); 
+        }
+
+        let renderer = new Renderer(canvas);  
+        var cubes = createCubes();
+
+        var cubePositions = new twoWayMap();
+
+        // console.log(cubePositions.get(0));
+        // console.log(cubePositions.revGet([-1, 1, 1]));
+
+        function createCubes(){
+            var cubes = new Array();
+
+            for(var i = 0; i<27; i++){
+                cubes[i] = new Object();
+                cubes[i].coordinate = [0,0,0];
+            }
+
+            cubes[ 0].translate(-1, 1, 1);   
+            cubes[ 1].translate( 0, 1, 1);
+            cubes[ 2].translate( 1, 1, 1);
+            cubes[ 3].translate(-1, 1, 0);
+            cubes[ 4].translate( 0, 1, 0);
+            cubes[ 5].translate( 1, 1, 0);
+            cubes[ 6].translate(-1, 1,-1);
+            cubes[ 7].translate( 0, 1,-1);
+            cubes[ 8].translate( 1, 1,-1);
+
+            cubes[ 9].translate(-1, 0, 1);
+            cubes[10].translate( 0, 0, 1);
+            cubes[11].translate( 1, 0, 1);
+            cubes[12].translate(-1, 0, 0);
+            cubes[13].translate( 0, 0, 0); // unseen
+            cubes[14].translate( 1, 0, 0);
+            cubes[15].translate(-1, 0,-1);
+            cubes[16].translate( 0, 0,-1);
+            cubes[17].translate( 1, 0,-1);
+
+            cubes[18].translate(-1,-1, 1);
+            cubes[19].translate( 0,-1, 1);
+            cubes[20].translate( 1,-1, 1);
+            cubes[21].translate(-1,-1, 0);
+            cubes[22].translate( 0,-1, 0);
+            cubes[23].translate( 1,-1, 0);
+            cubes[24].translate(-1,-1,-1);
+            cubes[25].translate( 0,-1,-1);
+            cubes[26].translate( 1,-1,-1);
+
+            return cubes;
+        }
+
+        function computeRotate(xRotationMatrix, yRotationMatrix, angle, cube){
+            glMatrix.mat4.rotate(yRotationMatrix, cube.matrices.identityMatrix, angle, [0,1,0]);
+            glMatrix.mat4.rotate(xRotationMatrix, cube.matrices.identityMatrix, angle/4, [1,0,0]);
+            glMatrix.mat4.mul(cube.matrices.viewMatrix, xRotationMatrix, yRotationMatrix); 
+        }
+
+        function rotate(cube, angle, key, direction){
+            let xRotationMatrix = new Float32Array(16);
+            let yRotationMatrix = new Float32Array(16);
+            let zRotationMatrix = new Float32Array(16);
+
+            glMatrix.mat4.identity(xRotationMatrix);
+            glMatrix.mat4.identity(yRotationMatrix);
+            glMatrix.mat4.identity(zRotationMatrix);
+
+            // if(key == "Q"){
+                // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
+            // }
+
+            // if(key == "D"){
+                // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
+            // }
+
+            // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[0]));
+            // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[1]));
+            // glMatrix.mat4.rotateZ(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[2]));
+
+
+            glMatrix.mat4.rotate(xRotationMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[0]), [1,0,0]);
+            glMatrix.mat4.rotate(yRotationMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[1]), [0,1,0]);
+            glMatrix.mat4.rotate(zRotationMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[2]), [0,0,1]);
+            glMatrix.mat4.mul(cube.matrices.modelMatrix, xRotationMatrix, yRotationMatrix); 
+
+            // if(key == "Q"){
+            //     cubes.forEach((cube) => {
+            //         if(cube.coordinate[1] == 1){
+            //             // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
+            //             // renderer.gl.uniformMatrix4fv(renderer.pointers.uniforms.uModelMatrixPointer, renderer.gl.FALSE, cube.matrices.modelMatrix);
+            //             cube.updateAngle("Y", angle);
+            //         }
+            //     });
+            // }
+
+            // // right
+
+            // if(key == "D"){
+            //     cubes.forEach((cube) => {
+            //         if(cube.coordinate[0] == 1){
+            //             // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
+            //             // renderer.gl.uniformMatrix4fv(renderer.pointers.uniforms.uModelMatrixPointer, renderer.gl.FALSE, cube.matrices.modelMatrix);  
+            //             cube.updateAngle("X", angle);
+            //             // console.log(cube.rotateAngle[0]);
+            //         }
+            //     });
+            // }
+
+            // cubes.forEach((cube) => {
+                // console.log(cube.rotateAngle[0]);
+                // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[0])) ;
+                // renderer.gl.uniformMatrix4fv(renderer.pointers.uniforms.uModelMatrixPointer, renderer.gl.FALSE, cube.matrices.modelMatrix);
+
+                // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[1])) ;
+                // glMatrix.mat4.rotateZ(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[2])) ;
+                // glMatrix.mat4.rotate(xRotationMatrix, cube.matrices.identityMatrix, cube.rotateAngle[0], [1,0,0]);
+                // glMatrix.mat4.rotate(yRotationMatrix, cube.matrices.identityMatrix, cube.rotateAngle[1], [0,1,0]);
+                // glMatrix.mat4.rotate(zRotationMatrix, cube.matrices.identityMatrix, cube.rotateAngle[2], [0,0,1]);
+
+                // console.log(xRotationMatrix);
+                // glMatrix.mat4.mul(cube.matrices.modelMatrix, xRotationMatrix, yRotationMatrix);
+            // });
+        }
+
+        function renderAll(){
+            cubes.forEach((cube) => {
+                renderer.draw(cube);
+            });
+        }
+
+
+        function main() {
+            renderAll();
+            let accumulatedRotation = 0;
+            let angle = 0;
+            // let faceAngle = 0;
+            let direction = 1;
+            let keyPressed = "";
+            let keyFlag = true;
+
+            let curAngleX = 0;
+            let curAngleY = 0;
+            let curAngleZ = 0;
+
+            function rotateHelperFunction(cube, axis, keyPressed, currentAngle){
+                angle = (currentAngle + (90 * direction));
+                cube.updateAngle(axis, angle);
+                rotate(cube, angle, keyPressed, direction);
+                accumulatedRotation += 90;
+            }
+
+            function animationLoop(now){
+                if(accumulatedRotation >= 90){
+                    keyFlag = true;
+                    accumulatedRotation = 0;
+                    window.cancelAnimationFrame(animationLoop);
+
+                    console.log("[!] UPDATE POSITION");
+
+                    cubes.forEach((cube) => {
+                        cube.updateCoordinate(keyPressed, direction, cubePositions);
+                    });
+
+                    keyPressed = "";
+                    
+                    return;
+                }
+
+
+                cubes.forEach((cube) => {
+                    curAngleX = cube.rotateAngle[0];
+                    curAngleY = cube.rotateAngle[1];
+                    curAngleZ = cube.rotateAngle[2];
+
+                    /*
+                        Horizontal Left to Right: QWE
+                        Vertical 
+                    */
+                    if(keyPressed == "A" && cube.coordinate[0] == -1){
+                        rotateHelperFunction(cube, "X", "A", curAngleX);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "S" && cube.coordinate[0] == 0){
+                        rotateHelperFunction(cube, "X", "S", curAngleX);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "D" && cube.coordinate[0] == 1){
+                        rotateHelperFunction(cube, "X", "D", curAngleX);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "Q" && cube.coordinate[1] == 1){
+                        rotateHelperFunction(cube, "Y", "Q", curAngleY);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "W" && cube.coordinate[1] == 0){
+                        rotateHelperFunction(cube, "Y", "W", curAngleY);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "E" && cube.coordinate[1] == -1){
+                        rotateHelperFunction(cube, "Y", "E", curAngleY);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "Z" && cube.coordinate[2] == 1){
+                        rotateHelperFunction(cube, "Z", "Z", curAngleZ);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "X" && cube.coordinate[2] == 0){
+                        rotateHelperFunction(cube, "Z", "X", curAngleZ);
+                        renderer.draw(cube);
+                    }else if(keyPressed == "C" && cube.coordinate[2] == -1){
+                        rotateHelperFunction(cube, "Z", "C", curAngleZ);
+                        renderer.draw(cube);
+                    }
+                    renderer.draw(cube);
+                });
+                
+
+
+                // console.log(cubes[26].rotateAngle);
+
+
+                requestAnimationFrame(animationLoop);
+            }
+            requestAnimationFrame(animationLoop);
+
+            const validKeys = "QWEASDZXCR";
+            window.addEventListener("keyup", checkKeyPressed, false);
+            function checkKeyPressed(event) {
+                
+                keyPressed = String.fromCharCode(event.keyCode);
+
+                if(!validKeys.includes(keyPressed)){
+                    return;
+                }
+                
+                console.log("PRESSED: ", keyPressed);
+
+                if(keyPressed == "R"){
+                    direction *= (-1);
+                    keyFlag = true;
+                    return;
+                }
+
+                if(keyFlag){
+                    keyFlag = false;
+                    requestAnimationFrame(animationLoop);    
+                }
+            }
+
+      }
+
+        // call the main program
+      main();
+    </script>
+</body>
+</html>
