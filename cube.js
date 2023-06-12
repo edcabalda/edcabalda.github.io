@@ -62,15 +62,8 @@ const data = [
 	 0.5, -0.5,  0.5, 	// POINT 3
 ];
 
-const colorsData = [
-	//   0,   0, 204, 	// blue
-	// 204,   0,   0, 	// red
-	//   0, 204,   0, 	// green 
-	// 204, 102,   0,	// orange 
-	// 255, 255, 255,	// white
-	// 204, 204,   0,	// yellow
-];
 
+//	COLOR DATA FOR EACH POINT
 const colors = [
 	// FRONT LOWER
 	0  ,  0, 204, 		// POINT 0
@@ -133,8 +126,11 @@ const colors = [
 	204, 204,   0, 		// POINT 0
 ];
 
+
+// COLOR DATA NORMALIZED TO 0...1 RANGE
 const normalizedColors = colors.map((x)=> x/255);
 
+// TEXTURE COORDINATES
 const texture = [
 	// FRONT
 	0   ,  0.5,
@@ -184,94 +180,6 @@ const texture = [
 	0.5 ,    0,
 	0.75,  0.5,
 ];
-
-const cubeMap = new Map();
-cubeMap.set(0,"-1,1,1");
-cubeMap.set(1,"0,1,1");
-cubeMap.set(2,"1,1,1");
-cubeMap.set(3,"-1,1,0");
-cubeMap.set(4,"0,1,0");
-cubeMap.set(5,"1,1,0");
-cubeMap.set(6,"-1,1,-1");
-cubeMap.set(7,"0,1,-1");
-cubeMap.set(8,"1,1,-1");
-
-cubeMap.set(9,"-1,0,1");
-cubeMap.set(10,"0,0,1");
-cubeMap.set(11,"1,0,1");
-cubeMap.set(12,"-1,0,0");
-cubeMap.set(13,"0,0,0");
-cubeMap.set(14,"1,0,0");
-cubeMap.set(15,"-1,0,-1");
-cubeMap.set(16,"0,0,-1");
-cubeMap.set(17,"1,0,-1");
-
-cubeMap.set(18,"-1,-1,1");
-cubeMap.set(19,"0,-1,1");
-cubeMap.set(20,"1,-1,1");
-cubeMap.set(21,"-1,-1,0");
-cubeMap.set(22,"0,-1,0");
-cubeMap.set(23,"1,-1,0");
-cubeMap.set(24,"-1,-1,-1");
-cubeMap.set(25,"0,-1,-1");
-cubeMap.set(26,"1,-1,-1");
-
-const upRotateMap = new Map();
-upRotateMap.set(0, 2);
-upRotateMap.set(2, 8);
-upRotateMap.set(8, 6);
-upRotateMap.set(6, 0);
-upRotateMap.set(4, 4);
-upRotateMap.set(1, 5);
-upRotateMap.set(5, 7);
-upRotateMap.set(7, 3);
-upRotateMap.set(3, 1);
-
-const upRevRotateMap = new Map();
-upRevRotateMap.set(0, 6);
-upRevRotateMap.set(6, 8);
-upRevRotateMap.set(8, 2);
-upRevRotateMap.set(2, 0);
-upRevRotateMap.set(4, 4);
-upRevRotateMap.set(1, 3);
-upRevRotateMap.set(3, 7);
-upRevRotateMap.set(7, 5);
-upRevRotateMap.set(5, 1);
-
-const downRotateMap = new Map();
-const downRevRotateMap = new Map();
-
-const leftRotateMap = new Map();
-const leftRevRotateMap = new Map();
-
-const rightRotateMap = new Map();
-rightRotateMap.set(2, 20);
-rightRotateMap.set(20, 26);
-rightRotateMap.set(26, 8);
-rightRotateMap.set(8, 2);
-rightRotateMap.set(14, 14);
-rightRotateMap.set(5, 11);
-rightRotateMap.set(11, 23);
-rightRotateMap.set(23, 17);
-rightRotateMap.set(17, 5);
-
-const rightRevRotateMap = new Map();
-rightRevRotateMap.set(2, 8);
-rightRevRotateMap.set(8, 26);
-rightRevRotateMap.set(26, 20);
-rightRevRotateMap.set(20, 2);
-rightRevRotateMap.set(14, 14);
-rightRevRotateMap.set(5, 17);
-rightRevRotateMap.set(17, 23);
-rightRevRotateMap.set(23, 11);
-rightRevRotateMap.set(11, 5);
-
-const frontRotateMap = new Map();
-const frontRevRotateMap = new Map();
-
-const backRotateMap = new Map();
-const backRevRotateMap = new Map();
-
 
 /*
     cube numbering:

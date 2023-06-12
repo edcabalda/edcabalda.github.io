@@ -1,12 +1,12 @@
 <!doctype html>
 <html>
 <head>
-    <title>WebGL Demo</title>
+    <title>Rubik's Cube</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <!-- CANVAS -->
-    <button id="vbutton"> Vertical Rotation</button>
     <div style="margin:0 auto;text-align:center">
       <div style="margin-left:auto;margin-right:auto;text-align:center">
             <canvas id="output" width="1000" height="1000"></canvas>
@@ -14,18 +14,16 @@
     </div>
     <br>
 
+    <!-- TEXTURE IMAGE -->
     <img id="cubeImage" src="atlas.png" width="0" height="0"></img>
-    
+
     <!-- VERTEX SHADER -->
     <script id="vertex-shader" type="notjs">#version 300 es
         in vec4 a_position;
         in float a_point_size;
-
+        
         in vec2 a_texture_coord;
         out vec2 v_texture_coord;
-        
-        // in vec3 a_color;
-        // out vec3 vColor;
 
         uniform mat4 u_transformation_matrix;
         uniform mat4 u_model_matrix;
@@ -36,7 +34,6 @@
             v_texture_coord = a_texture_coord;
             // Input point passes through the transformation matrix
             gl_Position = u_projection_matrix * u_view_matrix * u_model_matrix * u_transformation_matrix * a_position; // backwards yung mult
-            // vColor = a_color;
         } 
     </script>
 
@@ -44,20 +41,16 @@
     <script id="fragment-shader" type="notjs">#version 300 es
         precision mediump float;
 
-        // in vec3 vColor;
-        // out vec4 outColor;
-
         in vec2 v_texture_coord;
         uniform sampler2D sampler;
         out vec4 fragColor;
 
         void main(void) {
-            // outColor = vec4(vColor,0.8);
             fragColor = texture(sampler, v_texture_coord);
         }    
     </script>
 
-    <!-- IMPORTED LIBRARY -->
+    <!-- IMPORTED LIBRARY AND GEOMETRY DATA-->
     <script src="gl-matrix.js"></script>
     <script src="cube.js"></script>
 
@@ -89,7 +82,7 @@
 
             // helper functions
             resetGL(){
-                this.gl.clearColor(1.0, 1.0, 1.0, 1.0);
+                this.gl.clearColor(1.0, 1.0, 1.0, 0.0);
                 this.gl.clear(this.gl.COLOR_BUFFER_BIT);
                 this.gl.enable(this.gl.DEPTH_TEST);
             }
@@ -108,6 +101,7 @@
                 this.gl.attachShader(this.program, this.fragmentShader);
             }
 
+            // Program loader
             loadProgram(){
                 this.gl.linkProgram(this.program);
 
@@ -117,12 +111,13 @@
                 }
             }
 
+            // Pointers loaded into/from the program
             createPointers(){
                 this.pointers = {
                     attribs:{
                         aPositionPointer             : this.gl.getAttribLocation(this.program, 'a_position'),
-                        aTexCoordPointer             : this.gl.getAttribLocation(this.program, 'a_texture_coord'),
                         aColorPointer                : this.gl.getAttribLocation(this.program, 'a_color'),
+                        aTexCoordPointer             : this.gl.getAttribLocation(this.program, 'a_texture_coord'),
                     },
                     uniforms:{
                         uModelMatrixPointer          : this.gl.getUniformLocation(this.program, 'u_model_matrix'),
@@ -133,12 +128,14 @@
                 }
             }
 
+            // Assigns both color and vertices buffer
             createBuffers(){
                 this.vertexBuffer = this.gl.createBuffer();
                 this.colorBuffer = this.gl.createBuffer();
                 this.textureBuffer = this.gl.createBuffer();
             }
 
+            // Instantiates renderer attributes
             initializeRenderer(){
                 this.program = this.gl.createProgram();
                 this.resetGL();
@@ -149,14 +146,13 @@
                 this.createBuffers();
             }
 
+            //  Set to vertex shader
             setData(){
                 this.gl.vertexAttribPointer(this.pointers.attribs.aPositionPointer, 3, this.gl.FLOAT, false, 0, 0);
-                // this.gl.vertexAttribPointer(this.pointers.attribs.aColorPointer, 3, this.gl.FLOAT, false, 0, 0);
-
                 this.gl.enableVertexAttribArray(this.pointers.attribs.aPositionPointer);
-                // this.gl.enableVertexAttribArray(this.pointers.attribs.aColorPointer);
             }
 
+            // Load data to shaders
             loadPointers(object){
                 this.gl.uniformMatrix4fv(this.pointers.uniforms.uModelMatrixPointer, false, new Float32Array(object.matrices.modelMatrix));
                 this.gl.uniformMatrix4fv(this.pointers.uniforms.uViewMatrixPointer, false, new Float32Array(object.matrices.viewMatrix));
@@ -164,16 +160,14 @@
                 this.gl.uniformMatrix4fv(this.pointers.uniforms.uTransformationMatrixPointer, false, new Float32Array(object.matrices.transformationMatrix));
             }
 
+            //  Set and bind buffers containing object data to shaders
             setBuffers(object){
                 this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
                 this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(object.data), this.gl.STATIC_DRAW);
                 this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
-
-                // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
-                // this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(object.colors), this.gl.STATIC_DRAW);
-                // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
             }
 
+            //  Set up the textures
             setTextures(object){
                 this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.textureBuffer);
                 this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(object.texture), this.gl.STATIC_DRAW);
@@ -191,20 +185,14 @@
                 this.gl.texParameteri( this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR );
             }
 
+            // Draw given data
             draw(object){
                 this.loadPointers(object);
                 this.setBuffers(object);
                 this.setTextures(object);
 
-                // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
-                // this.gl.vertexAttribPointer(this.pointers.attribs.aColorPointer, 3, this.gl.FLOAT, false, 0, 0);
-
                 this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
                 this.gl.vertexAttribPointer(this.pointers.attribs.aPositionPointer, 3, this.gl.FLOAT, false, 0, 0);
-
-                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
-                this.gl.vertexAttribPointer(this.pointers.attribs.aPositionPointer, 3, this.gl.FLOAT, false, 0, 0);
-                
                 this.gl.drawArrays(this.gl.TRIANGLES, 0, object.data.length / 3);
             }
         }
@@ -213,15 +201,20 @@
     <!-- Object Class -->
     <script>
         class Object{
+            //  Object constructor initializing the object attributes:
+            /*      Data -> point coordinates for the object
+                    Rotate Angle -> tracker for the current angles of the object with respect to the 3D space
+            */
             constructor(){
                 this.data = [...data];
                 this.colors = normalizedColors;
-                this.rotateAngle = [0,0,0];
                 this.texture = texture;
+                this.rotateAngle = [0,0,0];
 
                 this.createMatrices();
             }
 
+            // Translate object by specified distance, also set object coordinate within the 3x3x3 space
             translate(x, y, z){
                 this.coordinate = [x,y,z];
 
@@ -232,6 +225,7 @@
                 }
             }
 
+            //  Create and set necessary webgl matrices
             createMatrices(){
                 this.matrices = {
                     modelMatrix          : glMatrix.mat4.create(),
@@ -248,112 +242,60 @@
                 glMatrix.mat4.identity(this.matrices.identityMatrix);
             }
 
+            // Update a specified angle
             updateAngle(axis, angle){
-                if(axis == "X"){
-                    this.rotateAngle[0] = angle;
-                }
-                if(axis == "Y"){
-                    this.rotateAngle[1] = angle;
-                }
-                if(axis == "Z"){
-                    this.rotateAngle[2] = angle;
-                }
+                if(axis == "X") this.rotateAngle[0] = angle;
+                else if(axis == "Y") this.rotateAngle[1] = angle;
+                else if(axis == "Z") this.rotateAngle[2] = angle;
+                
             }
 
-
-            updateCoordinate(key, direction, cubePositions){
-                let currentPos = 0;
-                let newPos = 0;
-
-                /*
-                if(key == "D"){
-                    if(this.coordinate[0] == 1){
-                        currentPos = cubePositions.revGet(this.coordinate);
-
-                        if(direction == 1){
-                            newPos = rightRotateMap.get(currentPos);
-                        }else{
-                            newPos = rightRevRotateMap.get(currentPos);
-                        }
-
-
-                        console.log("CURRENT POSITION", currentPos);
-                        console.log("NEW POSITION", newPos);
-                        this.coordinate = cubePositions.get(newPos);
-                    }
-                }
-
-                if(key == "Q"){
-                    if(this.coordinate[1] == -1){
-                        currentPos = cubePositions.revGet(this.coordinate);
-
-                        if(direction == 1){
-                            newPos = upRotateMap.get(currentPos);
-                        }else{
-                            newPos = upRevRotateMap.get(currentPos);
-                        }
-
-                        console.log("CURRENT POSITION", currentPos);
-                        console.log("NEW POSITION", newPos);
-                        this.coordinate = cubePositions.get(newPos);
-                    }                    
-                }
-                */
-
+            //  Update the object's coordinate within the 3D space given a key input and direction
+            updateCoordinate(key, direction){
+                //  Previous coordinates
                 let prevX = this.coordinate[0];
                 let prevY = this.coordinate[1];
                 let prevZ = this.coordinate[2];
 
+                //  Coordinates are defined by 1's and 0's, newCoordinate and directions used to simply flip coordinate values
                 let newCoordinate = 1;
                 if (direction < 0) newCoordinate = -1;
 
+                /*
+                    ASD commands rotate the object about the X axis; X coordinate remains the same, Y and Z coordinates are adjusted
+                    QWE commands rotate the object about the Y axis; X coordinate remains the same, X and Z coordinates are adjusted
+                    ZXC commands rotate the object about the Z axis; X coordinate remains the same, X and Y coordinates are adjusted
+                */
                 if((key == "A" && prevX == -1) || (key == "S" && prevX == 0) || (key == "D" && prevX == 1)){
-                        console.log("Previous: ", this.coordinate);
                         if(prevY > 0) this.coordinate[2] = newCoordinate;
                         else if(prevY < 0) this.coordinate[2] = newCoordinate * (-1);
                         else if(prevY == 0) this.coordinate[2] = 0;
                         if(prevZ > 0) this.coordinate[1] = newCoordinate * (-1);
                         else if(prevZ < 0) this.coordinate[1] = newCoordinate;
                         else if(prevZ == 0) this.coordinate[1] = 0;
-                        console.log("New: ", this.coordinate);
                 }else if((key == "Q" && prevY == 1) || (key == "W" && prevY == 0) || (key == "E" && prevY == -1)){
-                        console.log("Previous: ", this.coordinate);
                         if(prevX < 0) this.coordinate[2] = newCoordinate;
                         else if(prevX > 0) this.coordinate[2] = newCoordinate * (-1);
                         else if(prevX == 0) this.coordinate[2] = 0;
                         if(prevZ < 0) this.coordinate[0] = newCoordinate * (-1);
                         else if(prevZ > 0) this.coordinate[0] = newCoordinate;
                         else if(prevZ == 0) this.coordinate[0] = 0;
-                        console.log("New: ", this.coordinate);
+                }else if((key == "Z" && prevZ == 1) || (key == "X" && prevZ == 0) || (key == "C" && prevZ == -1)){
+                        if(prevY < 0) this.coordinate[0] = newCoordinate;
+                        else if(prevY > 0) this.coordinate[0] = newCoordinate * (-1);
+                        else if(prevY == 0) this.coordinate[0] = 0;
+                        if(prevX < 0) this.coordinate[1] = newCoordinate * (-1);
+                        else if(prevX > 0) this.coordinate[1] = newCoordinate;
+                        else if(prevX == 0) this.coordinate[1] = 0;
                 }
             }
         }
     </script>
 
-    <script>
-        class twoWayMap{
-            constructor(){
-                this.map = cubeMap;
-                this.revMap = new Map();
-
-                cubeMap.forEach((value, key, map) => {
-                    this.revMap.set(value, key);
-                });
-
-            }
-
-            get(key){
-                return cubeMap.get(key).split(",");
-            }
-
-            revGet(key){
-                return this.revMap.get(key.toString());
-            }
-        }
-
-    </script>
-
     <script> 
+        /*
+            Canvas, renderer and cubes are instantiated
+        */
         const canvas = document.querySelector('#output');
         if(!canvas){ 
             console.log("Canvas element with specified ID ('output') cannot be found."); 
@@ -362,11 +304,8 @@
         let renderer = new Renderer(canvas);  
         var cubes = createCubes();
 
-        var cubePositions = new twoWayMap();
-
-        // console.log(cubePositions.get(0));
-        // console.log(cubePositions.revGet([-1, 1, 1]));
-
+        // Function for creating a fresh 3x3x3 object consisting of cubes
+        // NOTE: All cubes are located at the same position at first, but are displaced through translation
         function createCubes(){
             var cubes = new Array();
 
@@ -408,13 +347,8 @@
             return cubes;
         }
 
-        function computeRotate(xRotationMatrix, yRotationMatrix, angle, cube){
-            glMatrix.mat4.rotate(yRotationMatrix, cube.matrices.identityMatrix, angle, [0,1,0]);
-            glMatrix.mat4.rotate(xRotationMatrix, cube.matrices.identityMatrix, angle/4, [1,0,0]);
-            glMatrix.mat4.mul(cube.matrices.viewMatrix, xRotationMatrix, yRotationMatrix); 
-        }
-
-        function rotate(cube, angle, key, direction){
+        // Rotate a given cube about its stored angles
+        function rotate(cube){
             let xRotationMatrix = new Float32Array(16);
             let yRotationMatrix = new Float32Array(16);
             let zRotationMatrix = new Float32Array(16);
@@ -423,63 +357,15 @@
             glMatrix.mat4.identity(yRotationMatrix);
             glMatrix.mat4.identity(zRotationMatrix);
 
-            // if(key == "Q"){
-                // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
-            // }
-
-            // if(key == "D"){
-                // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
-            // }
-
-            // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[0]));
-            // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[1]));
-            // glMatrix.mat4.rotateZ(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[2]));
-
-
+            // X, Y, and Z matrices for rotations are multiplied to each other to rotate the object about the 3 axes.
             glMatrix.mat4.rotate(xRotationMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[0]), [1,0,0]);
             glMatrix.mat4.rotate(yRotationMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[1]), [0,1,0]);
             glMatrix.mat4.rotate(zRotationMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[2]), [0,0,1]);
-            glMatrix.mat4.mul(cube.matrices.modelMatrix, xRotationMatrix, yRotationMatrix); 
-
-            // if(key == "Q"){
-            //     cubes.forEach((cube) => {
-            //         if(cube.coordinate[1] == 1){
-            //             // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
-            //             // renderer.gl.uniformMatrix4fv(renderer.pointers.uniforms.uModelMatrixPointer, renderer.gl.FALSE, cube.matrices.modelMatrix);
-            //             cube.updateAngle("Y", angle);
-            //         }
-            //     });
-            // }
-
-            // // right
-
-            // if(key == "D"){
-            //     cubes.forEach((cube) => {
-            //         if(cube.coordinate[0] == 1){
-            //             // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(angle));
-            //             // renderer.gl.uniformMatrix4fv(renderer.pointers.uniforms.uModelMatrixPointer, renderer.gl.FALSE, cube.matrices.modelMatrix);  
-            //             cube.updateAngle("X", angle);
-            //             // console.log(cube.rotateAngle[0]);
-            //         }
-            //     });
-            // }
-
-            // cubes.forEach((cube) => {
-                // console.log(cube.rotateAngle[0]);
-                // glMatrix.mat4.rotateX(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[0])) ;
-                // renderer.gl.uniformMatrix4fv(renderer.pointers.uniforms.uModelMatrixPointer, renderer.gl.FALSE, cube.matrices.modelMatrix);
-
-                // glMatrix.mat4.rotateY(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[1])) ;
-                // glMatrix.mat4.rotateZ(cube.matrices.modelMatrix, cube.matrices.identityMatrix, glMatrix.glMatrix.toRadian(cube.rotateAngle[2])) ;
-                // glMatrix.mat4.rotate(xRotationMatrix, cube.matrices.identityMatrix, cube.rotateAngle[0], [1,0,0]);
-                // glMatrix.mat4.rotate(yRotationMatrix, cube.matrices.identityMatrix, cube.rotateAngle[1], [0,1,0]);
-                // glMatrix.mat4.rotate(zRotationMatrix, cube.matrices.identityMatrix, cube.rotateAngle[2], [0,0,1]);
-
-                // console.log(xRotationMatrix);
-                // glMatrix.mat4.mul(cube.matrices.modelMatrix, xRotationMatrix, yRotationMatrix);
-            // });
+            glMatrix.mat4.mul(cube.matrices.modelMatrix, yRotationMatrix, zRotationMatrix);
+            glMatrix.mat4.mul(cube.matrices.modelMatrix, cube.matrices.modelMatrix, xRotationMatrix);
         }
 
+        //  Render all cubes
         function renderAll(){
             cubes.forEach((cube) => {
                 renderer.draw(cube);
@@ -488,93 +374,121 @@
 
 
         function main() {
-            renderAll();
-            let accumulatedRotation = 0;
+            /*
+                Instantiate necessary variables for tracking values and flagging events
+            */
+            let accumulatedRotation = 0;    // Variables for rotation tracking
             let angle = 0;
-            // let faceAngle = 0;
             let direction = 1;
-            let keyPressed = "";
-            let keyFlag = true;
-
+            let rotationSpeed = 45;
             let curAngleX = 0;
             let curAngleY = 0;
             let curAngleZ = 0;
+            let keyPressed = "";            // Variables for key down events
+            let keyFlag = true;
+            let explotionSpeed = 0.001;     // Variables for displacement 
+            let cumulativeDistance = 0;
 
+            /*  Helper function to facilitate rotation of individual cubes about a given axis
+            */
             function rotateHelperFunction(cube, axis, keyPressed, currentAngle){
-                angle = (currentAngle + (90 * direction));
+                angle = (currentAngle + (rotationSpeed * direction))%360;
                 cube.updateAngle(axis, angle);
-                rotate(cube, angle, keyPressed, direction);
-                accumulatedRotation += 90;
+                rotate(cube);
             }
 
+            /*  Function handling the animation loop as well as the processing of key processes/rotations of the 3x3x3.
+                Loop is stopped after a full 90 degree turn of relevant cubes
+                Coordinates of the cubes are then updated afterwards
+            */
             function animationLoop(now){
                 if(accumulatedRotation >= 90){
-                    keyFlag = true;
+                    cubes.forEach((cube) => {
+                        cube.updateCoordinate(keyPressed, direction);
+                    });
+                    
                     accumulatedRotation = 0;
                     window.cancelAnimationFrame(animationLoop);
-
-                    console.log("[!] UPDATE POSITION");
-
-                    cubes.forEach((cube) => {
-                        cube.updateCoordinate(keyPressed, direction, cubePositions);
-                    });
-
-                    keyPressed = "";
                     
                     return;
                 }
 
-
+                /*  Rotation of relevant cubes depending on the key presses
+                */
                 cubes.forEach((cube) => {
                     curAngleX = cube.rotateAngle[0];
                     curAngleY = cube.rotateAngle[1];
                     curAngleZ = cube.rotateAngle[2];
-
-                    /*
-                        Horizontal Left to Right: QWE
-                        Vertical 
-                    */
+                    
                     if(keyPressed == "A" && cube.coordinate[0] == -1){
                         rotateHelperFunction(cube, "X", "A", curAngleX);
-                        renderer.draw(cube);
                     }else if(keyPressed == "S" && cube.coordinate[0] == 0){
                         rotateHelperFunction(cube, "X", "S", curAngleX);
-                        renderer.draw(cube);
                     }else if(keyPressed == "D" && cube.coordinate[0] == 1){
                         rotateHelperFunction(cube, "X", "D", curAngleX);
-                        renderer.draw(cube);
                     }else if(keyPressed == "Q" && cube.coordinate[1] == 1){
                         rotateHelperFunction(cube, "Y", "Q", curAngleY);
-                        renderer.draw(cube);
                     }else if(keyPressed == "W" && cube.coordinate[1] == 0){
                         rotateHelperFunction(cube, "Y", "W", curAngleY);
-                        renderer.draw(cube);
                     }else if(keyPressed == "E" && cube.coordinate[1] == -1){
                         rotateHelperFunction(cube, "Y", "E", curAngleY);
-                        renderer.draw(cube);
                     }else if(keyPressed == "Z" && cube.coordinate[2] == 1){
                         rotateHelperFunction(cube, "Z", "Z", curAngleZ);
-                        renderer.draw(cube);
                     }else if(keyPressed == "X" && cube.coordinate[2] == 0){
                         rotateHelperFunction(cube, "Z", "X", curAngleZ);
-                        renderer.draw(cube);
                     }else if(keyPressed == "C" && cube.coordinate[2] == -1){
                         rotateHelperFunction(cube, "Z", "C", curAngleZ);
-                        renderer.draw(cube);
                     }
-                    renderer.draw(cube);
+                    
                 });
-                
 
+                /*  Current rotation is rendered and angle tracker is updated
+                */
+                renderAll();
 
-                // console.log(cubes[26].rotateAngle);
-
+                accumulatedRotation += rotationSpeed;
 
                 requestAnimationFrame(animationLoop);
             }
-            requestAnimationFrame(animationLoop);
+            /*
+                Displacement function; displaces/translates the cubes towards the direction specified by its coordinate values e.g., if X is -1, displaces it negatively with respect to X
+            */
+            function explode(now){
+                if(cumulativeDistance >= 1){
+                    cumulativeDistance = 0;
+                    return;
+                }
+                cubes.forEach((cube)=>{
+                    cube.translate(explotionSpeed*cube.coordinate[0],explotionSpeed*cube.coordinate[1],explotionSpeed*cube.coordinate[2]);
+                    renderer.draw(cube);
+                    cumulativeDistance += explotionSpeed;
+                });
+                
+                requestAnimationFrame(explode);
+            }
+            /*
+                Helper function for the rendering; used by the event handler
+            */
+            function playGame(){
+                keyFlag = false;
+                requestAnimationFrame(animationLoop);
+                requestAnimationFrame(animationLoop);
+                keyFlag = true;    
+            }
 
-            const validKeys = "QWEASDZXCR";
+            // Initial rendering of the 3x3x3 at the start 
+            renderAll();
+
+            // Do specific actions depending on the pressed keys
+            /*
+                QWE - Horizontal rotations
+                ASD - Vertical rotations with respect to the X axis
+                ZXC - Vertical rotations with respect to the Z axis
+                R   - Change rotation direction
+                F   - Displace cubes 
+                V   - Reset to original positions
+            */
+            const validKeys = "QWEASDZXCRFV";
             window.addEventListener("keyup", checkKeyPressed, false);
             function checkKeyPressed(event) {
                 
@@ -587,20 +501,34 @@
                 console.log("PRESSED: ", keyPressed);
 
                 if(keyPressed == "R"){
+                    keyFlag = false;
                     direction *= (-1);
+                    console.log("DIRECTION: ", direction);
                     keyFlag = true;
                     return;
                 }
 
-                if(keyFlag){
+                else if(keyPressed == "F"){
                     keyFlag = false;
-                    requestAnimationFrame(animationLoop);    
+                    explotionSpeed = 0.4;
+                    requestAnimationFrame(explode);
+                    keyFlag = true;
+                    return;
+                }
+
+                else if(keyPressed == "V"){
+                    keyFlag = false;
+                    console.log("RUBIK'S CUBE RESET");
+                    cubes = createCubes();
+                    renderAll();
+                    keyFlag = true;
+                    return;
+                }
+                else{
+                    playGame();
                 }
             }
-
       }
-
-        // call the main program
       main();
     </script>
 </body>
