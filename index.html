@@ -388,6 +388,7 @@
             let keyFlag = true;
             let explotionSpeed = 0.001;     // Variables for displacement 
             let cumulativeDistance = 0;
+            let expandFlag = true;
 
             /*  Helper function to facilitate rotation of individual cubes about a given axis
             */
@@ -485,7 +486,7 @@
                 ASD - Vertical rotations with respect to the X axis
                 ZXC - Vertical rotations with respect to the Z axis
                 R   - Change rotation direction
-                F   - Displace cubes 
+                F   - Displace cubes; only possible from the default position
                 V   - Reset to original positions
             */
             const validKeys = "QWEASDZXCRFV";
@@ -508,7 +509,8 @@
                     return;
                 }
 
-                else if(keyPressed == "F"){
+                else if(keyPressed == "F" && expandFlag){
+                    expandFlag = false;
                     keyFlag = false;
                     explotionSpeed = 0.4;
                     requestAnimationFrame(explode);
@@ -517,6 +519,7 @@
                 }
 
                 else if(keyPressed == "V"){
+                    expandFlag = true;
                     keyFlag = false;
                     console.log("RUBIK'S CUBE RESET");
                     cubes = createCubes();
@@ -525,6 +528,7 @@
                     return;
                 }
                 else{
+                    expandFlag = false;
                     playGame();
                 }
             }

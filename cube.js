@@ -130,7 +130,7 @@ const colors = [
 // COLOR DATA NORMALIZED TO 0...1 RANGE
 const normalizedColors = colors.map((x)=> x/255);
 
-// TEXTURE COORDINATES
+// TEXTURE COORDINATES FOR EACH VERTEX
 const texture = [
 	// FRONT
 	0   ,  0.5,
